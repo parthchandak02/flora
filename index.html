@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Flora — Generative Country Blooms</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#1a1614;font-family:system-ui,-apple-system,sans-serif}
+canvas{display:block;width:100%;height:100%}
+#info{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.55);font-size:13px;text-align:center;pointer-events:none;text-shadow:0 2px 8px rgba(0,0,0,0.6);line-height:1.6;z-index:5}
+#info .name{font-size:16px;font-weight:500;color:rgba(255,255,255,0.8)}
+#info .meta{font-size:12px;opacity:0.6}
+#tap{position:fixed;top:28px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.15);font-size:11px;letter-spacing:0.12em;pointer-events:none;z-index:5}
+</style>
+</head>
+<body>
+<div id="tap">TAP FOR NEW</div>
+<canvas id="c"></canvas>
+<div id="info"><div class="name" id="countryName"></div><div class="meta" id="countryMeta"></div></div>
+<script>
+const C={bg:'#1a1614',stem:'rgba(170,145,125,0.8)',growRate:0.012};
+const FLAGS={
+  IN:{c:['#ff9933','#ffffff','#138808','#000080'],n:'India',e:'🇮🇳'},
+  JP:{c:['#f5f0eb','#bc002d','#2e2e2e','#d4a373'],n:'Japan',e:'🇯🇵'},
+  FR:{c:['#002395','#ffffff','#ed2939','#d4af37'],n:'France',e:'🇫🇷'},
+  BR:{c:['#009739','#ffdf00','#002776','#ffffff'],n:'Brazil',e:'🇧🇷'},
+  ZA:{c:['#007a4d','#ffb612','#de3831','#002395'],n:'South Africa',e:'🇿🇦'},
+  MX:{c:['#006847','#ffffff','#ce1126','#8b4513'],n:'Mexico',e:'🇲🇽'},
+  NO:{c:['#ba0c2f','#ffffff','#002868','#c0c0c0'],n:'Norway',e:'🇳🇴'},
+  TH:{c:['#ed1c24','#ffffff','#241d4f','#f4a920'],n:'Thailand',e:'🇹🇭'},
+  MA:{c:['#c1272d','#ffffff','#000000','#006233'],n:'Morocco',e:'🇲🇦'},
+  NG:{c:['#008751','#ffffff','#000000','#787878'],n:'Nigeria',e:'🇳🇬'},
+  CO:{c:['#ffcd00','#003893','#ce1126','#ffffff'],n:'Colombia',e:'🇨🇴'},
+  VN:{c:['#da251d','#ffcc00','#ffffff','#000000'],n:'Vietnam',e:'🇻🇳'},
+  PT:{c:['#006600','#ff0000','#ffff00','#003399'],n:'Portugal',e:'🇵🇹'},
+  GR:{c:['#0d5eaf','#ffffff','#000000','#c0c0c0'],n:'Greece',e:'🇬🇷'},
+  US:{c:['#b22234','#ffffff','#3c3b6e','#c0c0c0'],n:'United States',e:'🇺🇸'},
+};
+const CODES=Object.keys(FLAGS);
+const ca=document.getElementById('c'),cx=ca.getContext('2d');
+let W,H,dp;
+function rs(){
+  dp=Math.min(window.devicePixelRatio||1,2);
+  W=window.innerWidth;H=window.innerHeight;
+  ca.width=W*dp;ca.height=H*dp;
+  ca.style.width=W+'px';ca.style.height=H+'px';
+  cx.setTransform(dp,0,0,dp,0,0);
+}
+rs();window.addEventListener('resize',rs);
+let pal=['#d4a373','#c46a4d','#7a9b7a','#e8d5c4'];
+let segs=[],leaves=[],blooms=[];
+let prog=0,gr=true;
+function pk(){return pal[Math.floor(Math.random()*pal.length)]}
+function cl(v,m,M){return Math.max(m,Math.min(M,v))}
+
+function gen(popM,areaKm2){
+  segs=[];leaves=[];blooms=[];prog=0;gr=true;
+  const sc=cl(Math.sqrt(areaKm2/100000),1.0,1.6);
+  const dn=cl(popM/200,1.5,5);
+  const mx=W/2,by=H*0.75;
+  const stemH=H*0.42*sc;
+  const nT=Math.floor(12+dn*4);
+  const sLen=stemH/nT;
+
+  // Trunk - gentle center curve
+  for(let i=0;i<nT;i++){
+    const t=i/nT;
+    const sw=Math.sin(t*Math.PI*2)*8*(1-t*0.6);
+    const ex=Math.sin((i+1)/nT*Math.PI*2)*8*(1-(i+1)/nT*0.6);
+    segs.push({x1:mx+sw,y1:by-i*sLen,x2:mx+ex,y2:by-(i+1)*sLen,th:4.5*(1-t*0.5)+0.3,g:0,tr:1});
+  }
+
+  // Branches - fixed length, moderate spread
+  const nB=Math.floor(3+dn*2.5);
+  for(let i=0;i<nB;i++){
+    const idx=Math.floor(2+(i/nB)*(nT-4));
+    if(idx>=nT)break;
+    const p=segs[idx];
+    const side=i%2===0?1:-1;
+    const angle=-Math.PI/2+side*(Math.PI/3+Math.random()*0.3);
+    const bSegs=3+Math.floor(Math.random()*3);
+    const segL=sLen*2.5;
+    let px=(p.x1+p.x2)/2,py=(p.y1+p.y2)/2;
+    for(let j=0;j<bSegs;j++){
+      const t=j/bSegs;
+      const drop=Math.sin(t*Math.PI)*8*side;
+      const nx=px+Math.cos(angle)*segL+drop;
+      const ny=py+Math.sin(angle)*segL;
+      const th=Math.max(0.3,p.th*0.65*(1-j/bSegs*0.4));
+      segs.push({x1:px,y1:py,x2:nx,y2:ny,th,g:0,tr:0});
+      px=nx;py=ny;
+      if(j>0&&Math.random()<0.5){
+        leaves.push({x:(nx+px)/2,y:(ny+py)/2,an:angle+(Math.random()-0.5)*0.5,sz:6+Math.random()*12,co:pk(),g:0});
+      }
+    }
+    blooms.push({x:px,y:py,sz:14+Math.random()*30*(1-i/nB*0.3),co:pk(),pc:8+Math.floor(Math.random()*8),ro:Math.random()*Math.PI*2,g:0});
+  }
+  // Top bloom
+  const tp=segs[nT-1];
+  blooms.push({x:(tp.x1+tp.x2)/2,y:tp.y2-3,sz:32,co:pk(),pc:12,ro:Math.random()*Math.PI*2,g:0});
+}
+
+function draw(t){
+  cx.fillStyle=C.bg;cx.fillRect(0,0,W,H);
+  const gd=cx.createRadialGradient(W/2,H*0.82,0,W/2,H*0.82,H*0.35);
+  gd.addColorStop(0,'rgba(160,130,105,0.05)');gd.addColorStop(1,'rgba(0,0,0,0)');
+  cx.fillStyle=gd;cx.fillRect(0,0,W,H);
+  if(gr){prog+=C.growRate;if(prog>=1){prog=1;gr=false;}}
+
+  // Draw segments (branch segments first, then trunk on top)
+  cx.lineCap='round';cx.lineJoin='round';
+  for(const s of segs){
+    const f=Math.min(s.g+0.025,1);
+    s.g=f;if(f<=0)continue;
+    const ex=s.x1+(s.x2-s.x1)*f,ey=s.y1+(s.y2-s.y1)*f;
+    const mx=(s.x1+ex)/2-8,my=(s.y1+ey)/2-4;
+    cx.beginPath();cx.moveTo(s.x1,s.y1);
+    cx.quadraticCurveTo(mx,my,ex,ey);
+    cx.strokeStyle=C.stem;cx.lineWidth=s.th;cx.stroke();
+  }
+
+  // Highlight trunk center line
+  cx.globalAlpha=0.1;
+  cx.strokeStyle='rgba(220,195,170,0.4)';cx.lineWidth=1;
+  for(const s of segs){
+    const f=Math.min(s.g+0.025,1);if(f<=0)continue;
+    const ex=s.x1+(s.x2-s.x1)*f,ey=s.y1+(s.y2-s.y1)*f;
+    const mx=(s.x1+ex)/2-8,my=(s.y1+ey)/2-4;
+    cx.beginPath();cx.moveTo(s.x1,s.y1);cx.quadraticCurveTo(mx,my,ex,ey);cx.stroke();
+  }
+  cx.globalAlpha=1;
+
+  // Leaves
+  for(const l of leaves){
+    const f=Math.min(l.g+0.03,1);l.g=f;if(f<0.05)continue;
+    cx.save();cx.translate(l.x,l.y);cx.rotate(l.an);cx.scale(f,f);
+    cx.beginPath();cx.moveTo(0,0);
+    cx.quadraticCurveTo(l.sz*0.4,-l.sz*0.5,l.sz,0);
+    cx.quadraticCurveTo(l.sz*0.4,l.sz*0.5,0,0);
+    cx.fillStyle=l.co;cx.globalAlpha=0.4+0.2*f;cx.fill();
+    cx.restore();
+  }
+
+  // Blooms
+  for(const b of blooms){
+    const f=Math.min(b.g+0.02,1);b.g=f;if(f<0.05)continue;
+    const r=b.sz*f;if(r<1)continue;
+    const sway=Math.sin(t*0.001+b.ro*3)*1.5;
+    for(let i=0;i<b.pc;i++){
+      const a=b.ro+(i/b.pc)*Math.PI*2+sway*0.02;
+      const px=b.x+Math.cos(a)*r*0.38,py=b.y+Math.sin(a)*r*0.38;
+      cx.save();cx.translate(px,py);cx.rotate(a);
+      cx.beginPath();cx.ellipse(0,0,r*0.38,r*0.22,0,0,Math.PI*2);
+      cx.fillStyle=b.co;cx.globalAlpha=0.55+0.3*Math.sin(t*0.002+i*1.3);cx.fill();
+      cx.restore();
+    }
+    cx.beginPath();cx.arc(b.x,b.y,r*0.14,0,Math.PI*2);
+    cx.fillStyle='#f5e6c8';cx.globalAlpha=0.75;cx.fill();
+    cx.globalAlpha=1;
+  }
+
+  if(!gr){
+    cx.globalAlpha=0.03;
+    for(let i=0;i<10;i++){
+      const px=W*(0.15+0.7*Math.sin(t*0.00025+i*2.1));
+      const py=H*(0.1+0.5*Math.cos(t*0.00035+i*1.5));
+      cx.beginPath();cx.arc(px,py,1+Math.sin(t*0.001+i)*0.5,0,Math.PI*2);
+      cx.fillStyle='#f5e6c8';cx.fill();
+    }
+    cx.globalAlpha=1;
+  }
+  requestAnimationFrame(draw);
+}
+
+function load(code){
+  const f=FLAGS[code];if(f)pal=f.c;
+  const ep={IN:1400,JP:125,FR:68,BR:213,ZA:60,MX:128,NO:5.4,TH:70,MA:37,NG:218,CO:52,VN:100,PT:10,GR:10,US:331};
+  const ea={IN:3287,JP:378,FR:551,BR:8516,ZA:1221,MX:1964,NO:385,TH:513,MA:711,NG:924,CO:1142,VN:331,PT:92,GR:132,US:9834};
+  gen(ep[code]||100,(ea[code]||500)*1000);
+  document.getElementById('countryName').textContent=f.e+' '+f.n;
+  fetch('https://restcountries.com/v3.1/alpha/'+code).then(r=>r.json()).then(d=>{
+    const c=d[0];
+    if(c&&c.population)gen(c.population/1e6,c.area||(ea[code]||500)*1000);
+    document.getElementById('countryMeta').textContent=c&&c.capital?c.capital[0]:'';
+  }).catch(()=>{});
+}
+
+let lt=0;
+function tap(){
+  if(Date.now()-lt<300)return;
+  lt=Date.now();segs=[];leaves=[];blooms=[];gr=true;prog=0;
+  load(CODES[Math.floor(Math.random()*CODES.length)]);
+}
+ca.addEventListener('click',tap);
+ca.addEventListener('touchstart',(e)=>{tap();e.preventDefault()},{passive:false});
+
+load(CODES[Math.floor(Math.random()*CODES.length)]);
+draw(0);
+</script>
+</body>
+</html>
