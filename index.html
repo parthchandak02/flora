@@ -6,39 +6,42 @@
 <title>Flora — Generative Country Blooms</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;background:#1a1614;font-family:system-ui,-apple-system,sans-serif}
+html,body{width:100%;height:100%;overflow:hidden;background:#faf7f2}
 canvas{display:block;width:100%;height:100%}
-#info{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.55);font-size:13px;text-align:center;pointer-events:none;text-shadow:0 2px 8px rgba(0,0,0,0.6);line-height:1.6;z-index:5}
-#info .name{font-size:16px;font-weight:500;color:rgba(255,255,255,0.8)}
-#info .meta{font-size:12px;opacity:0.6}
-#tap{position:fixed;top:28px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.15);font-size:11px;letter-spacing:0.12em;pointer-events:none;z-index:5}
+#desc{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);color:rgba(0,0,0,0.18);font:12px/1.4 system-ui,-apple-system,sans-serif;text-align:center;pointer-events:none;letter-spacing:0.02em;white-space:nowrap;z-index:5}
+#ctry{position:fixed;bottom:52px;left:50%;transform:translateX(-50%);font:14px/1 system-ui,-apple-system,sans-serif;text-align:center;pointer-events:none;z-index:5;transition:opacity 0.4s}
+#ctry .flag{font-size:18px}
+#ctry .name{font-weight:450;letter-spacing:0.03em}
+#tap-hint{position:fixed;top:28px;left:50%;transform:translateX(-50%);color:rgba(0,0,0,0.12);font:10px/1 system-ui,-apple-system,sans-serif;letter-spacing:0.12em;pointer-events:none;z-index:5;text-transform:uppercase}
 </style>
 </head>
 <body>
-<div id="tap">TAP FOR NEW</div>
+<div id="tap-hint">tap for new bloom</div>
 <canvas id="c"></canvas>
-<div id="info"><div class="name" id="countryName"></div><div class="meta" id="countryMeta"></div></div>
+<div id="ctry"></div>
+<div id="desc">Each country's story grows into a flower — population shapes the stem, flag colors bloom into petals</div>
 <script>
-const C={bg:'#1a1614',stem:'rgba(170,145,125,0.8)',growRate:0.012};
+const C={bg:'#faf7f2',stem:'rgba(110,130,90,0.7)',stemDark:'rgba(80,100,60,0.85)',growRate:0.015};
 const FLAGS={
-  IN:{c:['#ff9933','#ffffff','#138808','#000080'],n:'India',e:'🇮🇳'},
-  JP:{c:['#f5f0eb','#bc002d','#2e2e2e','#d4a373'],n:'Japan',e:'🇯🇵'},
-  FR:{c:['#002395','#ffffff','#ed2939','#d4af37'],n:'France',e:'🇫🇷'},
-  BR:{c:['#009739','#ffdf00','#002776','#ffffff'],n:'Brazil',e:'🇧🇷'},
-  ZA:{c:['#007a4d','#ffb612','#de3831','#002395'],n:'South Africa',e:'🇿🇦'},
-  MX:{c:['#006847','#ffffff','#ce1126','#8b4513'],n:'Mexico',e:'🇲🇽'},
-  NO:{c:['#ba0c2f','#ffffff','#002868','#c0c0c0'],n:'Norway',e:'🇳🇴'},
-  TH:{c:['#ed1c24','#ffffff','#241d4f','#f4a920'],n:'Thailand',e:'🇹🇭'},
-  MA:{c:['#c1272d','#ffffff','#000000','#006233'],n:'Morocco',e:'🇲🇦'},
-  NG:{c:['#008751','#ffffff','#000000','#787878'],n:'Nigeria',e:'🇳🇬'},
-  CO:{c:['#ffcd00','#003893','#ce1126','#ffffff'],n:'Colombia',e:'🇨🇴'},
-  VN:{c:['#da251d','#ffcc00','#ffffff','#000000'],n:'Vietnam',e:'🇻🇳'},
-  PT:{c:['#006600','#ff0000','#ffff00','#003399'],n:'Portugal',e:'🇵🇹'},
-  GR:{c:['#0d5eaf','#ffffff','#000000','#c0c0c0'],n:'Greece',e:'🇬🇷'},
-  US:{c:['#b22234','#ffffff','#3c3b6e','#c0c0c0'],n:'United States',e:'🇺🇸'},
+  IN:{c:['#ff9933','#ffffff','#138808','#000080'],n:'India',e:'🇮🇳',ft:'marigold'},
+  JP:{c:['#f5f0eb','#bc002d','#2e2e2e','#d4a373'],n:'Japan',e:'🇯🇵',ft:'cherry'},
+  FR:{c:['#002395','#ffffff','#ed2939','#d4af37'],n:'France',e:'🇫🇷',ft:'iris'},
+  BR:{c:['#009739','#ffdf00','#002776','#ffffff'],n:'Brazil',e:'🇧🇷',ft:'orchid'},
+  ZA:{c:['#007a4d','#ffb612','#de3831','#002395'],n:'South Africa',e:'🇿🇦',ft:'protea'},
+  MX:{c:['#006847','#ffffff','#ce1126','#8b4513'],n:'Mexico',e:'🇲🇽',ft:'dahlia'},
+  NO:{c:['#ba0c2f','#ffffff','#002868','#c0c0c0'],n:'Norway',e:'🇳🇴',ft:'heather'},
+  TH:{c:['#ed1c24','#ffffff','#241d4f','#f4a920'],n:'Thailand',e:'🇹🇭',ft:'lotus'},
+  MA:{c:['#c1272d','#ffffff','#000000','#006233'],n:'Morocco',e:'🇲🇦',ft:'rose'},
+  NG:{c:['#008751','#ffffff','#000000','#787878'],n:'Nigeria',e:'🇳🇬',ft:'calla'},
+  CO:{c:['#ffcd00','#003893','#ce1126','#ffffff'],n:'Colombia',e:'🇨🇴',ft:'rose'},
+  VN:{c:['#da251d','#ffcc00','#ffffff','#000000'],n:'Vietnam',e:'🇻🇳',ft:'lotus'},
+  PT:{c:['#006600','#ff0000','#ffff00','#003399'],n:'Portugal',e:'🇵🇹',ft:'carnation'},
+  GR:{c:['#0d5eaf','#ffffff','#000000','#c0c0c0'],n:'Greece',e:'🇬🇷',ft:'laurel'},
+  US:{c:['#b22234','#ffffff','#3c3b6e','#c0c0c0'],n:'United States',e:'🇺🇸',ft:'california poppy'},
 };
 const CODES=Object.keys(FLAGS);
 const ca=document.getElementById('c'),cx=ca.getContext('2d');
+const ctryEl=document.getElementById('ctry');
 let W,H,dp;
 function rs(){
   dp=Math.min(window.devicePixelRatio||1,2);
@@ -49,140 +52,277 @@ function rs(){
 }
 rs();window.addEventListener('resize',rs);
 let pal=['#d4a373','#c46a4d','#7a9b7a','#e8d5c4'];
-let segs=[],leaves=[],blooms=[];
+let segs=[],leaves=[],blooms=[],petals=[],stamens=[];
 let prog=0,gr=true;
 function pk(){return pal[Math.floor(Math.random()*pal.length)]}
 function cl(v,m,M){return Math.max(m,Math.min(M,v))}
 
+// ─── FLOWER TYPES ───
+function flowerParams(type){
+  const types={
+    marigold:{petals:12,layers:2,pShape:0.7,pWidth:0.5,center:0.3},
+    cherry:{petals:5,layers:1,pShape:0.9,pWidth:0.7,center:0.15},
+    iris:{petals:6,layers:1,pShape:0.5,pWidth:0.3,center:0.25},
+    orchid:{petals:5,layers:1,pShape:1.2,pWidth:0.4,center:0.2},
+    protea:{petals:18,layers:3,pShape:0.4,pWidth:0.6,center:0.35},
+    dahlia:{petals:10,layers:2,pShape:0.5,pWidth:0.55,center:0.2},
+    heather:{petals:8,layers:1,pShape:0.6,pWidth:0.3,center:0.2},
+    lotus:{petals:8,layers:2,pShape:0.8,pWidth:0.45,center:0.15},
+    rose:{petals:14,layers:2,pShape:0.6,pWidth:0.6,center:0.2},
+    calla:{petals:1,layers:1,pShape:2.0,pWidth:0.3,center:0.3},
+    carnation:{petals:20,layers:3,pShape:0.4,pWidth:0.5,center:0.15},
+    laurel:{petals:4,layers:1,pShape:0.7,pWidth:0.5,center:0.2},
+    'california poppy':{petals:4,layers:1,pShape:1.0,pWidth:0.6,center:0.2},
+  };
+  return types[type]||{petals:8,layers:2,pShape:0.6,pWidth:0.5,center:0.2};
+}
+
 function gen(popM,areaKm2){
-  segs=[];leaves=[];blooms=[];prog=0;gr=true;
-  const sc=cl(Math.sqrt(areaKm2/100000),1.0,1.6);
+  segs=[];leaves=[];blooms=[];petals=[];stamens=[];prog=0;gr=true;
+  const sc=cl(Math.sqrt(areaKm2/100000),0.8,1.4);
   const dn=cl(popM/200,1.5,5);
-  const mx=W/2,by=H*0.75;
-  const stemH=H*0.42*sc;
-  const nT=Math.floor(12+dn*4);
+  const mx=W/2,by=H*0.78;
+  const stemH=H*0.38*sc;
+  const nT=Math.floor(10+dn*3);
   const sLen=stemH/nT;
 
-  // Trunk - gentle center curve
+  // Main stem — gentle curve
   for(let i=0;i<nT;i++){
     const t=i/nT;
-    const sw=Math.sin(t*Math.PI*2)*8*(1-t*0.6);
-    const ex=Math.sin((i+1)/nT*Math.PI*2)*8*(1-(i+1)/nT*0.6);
-    segs.push({x1:mx+sw,y1:by-i*sLen,x2:mx+ex,y2:by-(i+1)*sLen,th:4.5*(1-t*0.5)+0.3,g:0,tr:1});
+    const sw=Math.sin(t*Math.PI*0.8)*5*(1-t*0.5);
+    const ex=Math.sin((i+1)/nT*Math.PI*0.8)*5*(1-(i+1)/nT*0.5);
+    segs.push({x1:mx+sw,y1:by-i*sLen,x2:mx+ex,y2:by-(i+1)*sLen,th:5*(1-t*0.4)+0.5,g:0});
   }
 
-  // Branches - fixed length, moderate spread
-  const nB=Math.floor(3+dn*2.5);
+  // Side stems + flowers
+  const nB=Math.floor(3+dn*2);
+  const ft=FLAGS[CODES.find(k=>FLAGS[k].c===pal)]||{ft:'rose'};
+  const fp=flowerParams(ft.ft||'rose');
+
   for(let i=0;i<nB;i++){
-    const idx=Math.floor(2+(i/nB)*(nT-4));
+    const idx=Math.floor(2+(i/nB)*(nT-5));
     if(idx>=nT)break;
     const p=segs[idx];
     const side=i%2===0?1:-1;
     const angle=-Math.PI/2+side*(Math.PI/3+Math.random()*0.3);
-    const bSegs=3+Math.floor(Math.random()*3);
-    const segL=sLen*2.5;
+    const bSegs=2+Math.floor(Math.random()*2);
+    const segL=sLen*2.8;
     let px=(p.x1+p.x2)/2,py=(p.y1+p.y2)/2;
+    let lx=px,ly=py;
     for(let j=0;j<bSegs;j++){
       const t=j/bSegs;
-      const drop=Math.sin(t*Math.PI)*8*side;
+      const drop=Math.sin(t*Math.PI)*6*side;
       const nx=px+Math.cos(angle)*segL+drop;
       const ny=py+Math.sin(angle)*segL;
-      const th=Math.max(0.3,p.th*0.65*(1-j/bSegs*0.4));
-      segs.push({x1:px,y1:py,x2:nx,y2:ny,th,g:0,tr:0});
+      const th=Math.max(0.3,p.th*0.7*(1-j/bSegs*0.3));
+      segs.push({x1:px,y1:py,x2:nx,y2:ny,th,g:0});
       px=nx;py=ny;
-      if(j>0&&Math.random()<0.5){
-        leaves.push({x:(nx+px)/2,y:(ny+py)/2,an:angle+(Math.random()-0.5)*0.5,sz:6+Math.random()*12,co:pk(),g:0});
+      // Leaf on this stem segment
+      if(Math.random()<0.6){
+        const lfSide=Math.random()<0.5?1:-1;
+        const lfAngle=angle+lfSide*(Math.PI/4+Math.random()*0.3);
+        const lfLen=8+Math.random()*16;
+        leaves.push({x:(nx+px)/2,y:(ny+py)/2,angle:lfAngle,len:lfLen,wid:4+Math.random()*5,co:'rgba(110,140,90,0.5)',g:0});
       }
     }
-    blooms.push({x:px,y:py,sz:14+Math.random()*30*(1-i/nB*0.3),co:pk(),pc:8+Math.floor(Math.random()*8),ro:Math.random()*Math.PI*2,g:0});
+    // Flower at branch tip
+    const scale=0.6+0.4*(1-i/nB);
+    blooms.push({x:px,y:py,sz:20+Math.random()*20*scale,co:pk(),c2:pk(),g:0,ftype:ft.ft||'rose',fp:fp,scale:scale});
   }
-  // Top bloom
+
+  // Top flower (main bloom — largest)
   const tp=segs[nT-1];
-  blooms.push({x:(tp.x1+tp.x2)/2,y:tp.y2-3,sz:32,co:pk(),pc:12,ro:Math.random()*Math.PI*2,g:0});
+  const topY=tp.y2-5;
+  blooms.push({x:(tp.x1+tp.x2)/2,y:topY,sz:45,co:pk(),c2:pk(),g:0,ftype:ft.ft||'rose',fp:fp,scale:1.0});
+
+  // Leaves along main stem
+  for(let i=3;i<nT-2;i+=2){
+    const p=segs[i];
+    const lfSide=Math.random()<0.5?1:-1;
+    const lfAngle=-Math.PI/2+lfSide*(Math.PI/4+Math.random()*0.2);
+    const lfLen=12+Math.random()*20;
+    leaves.push({x:(p.x1+p.x2)/2,y:(p.y1+p.y2)/2,angle:lfAngle,len:lfLen,wid:4+Math.random()*6,co:'rgba(100,130,80,0.45)',g:0});
+  }
+
+  // Ground grass tufts
+  for(let i=0;i<20;i++){
+    const gx=mx-120+Math.random()*240;
+    const gh=6+Math.random()*18;
+    leaves.push({x:gx,y:by,angle:-Math.PI/2+(-0.3+Math.random()*0.6),len:gh,wid:1.5+Math.random()*2,co:'rgba(100,130,80,0.25)',g:0});
+  }
+}
+
+// ─── DRAW FUNCTIONS ───
+
+function drawPetal(cx,ctx,x,y,angle,len,width,color,progress){
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.rotate(angle);
+  const f=Math.min(progress*1.3,1);
+  const r=len*f,w=width*f;
+  ctx.beginPath();
+  ctx.moveTo(0,0);
+  ctx.bezierCurveTo(w*0.4,-r*0.5,w*1.1,-r*0.85,0,-r);
+  ctx.bezierCurveTo(-w*1.1,-r*0.85,-w*0.4,-r*0.5,0,0);
+  ctx.closePath();
+  ctx.fillStyle=color;
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawLeaf(cx,ctx,x,y,angle,len,wid,color,progress){
+  const f=Math.min(progress*1.5,1);
+  if(f<0.05)return;
+  ctx.save();
+  ctx.translate(x,y);
+  ctx.rotate(angle);
+  const r=len*f,w=wid*f;
+  ctx.beginPath();
+  ctx.moveTo(0,0);
+  ctx.quadraticCurveTo(w*0.6,-r*0.5,0,-r);
+  ctx.quadraticCurveTo(-w*0.6,-r*0.5,0,0);
+  ctx.fillStyle=color;
+  ctx.globalAlpha=0.6+0.4*f;
+  ctx.fill();
+  ctx.globalAlpha=1;
+  ctx.restore();
+}
+
+function drawGround(x,y){
+  // Subtle soil mound at stem base
+  const grd=cx.createRadialGradient(x,y+4,0,x,y+4,40);
+  grd.addColorStop(0,'rgba(130,110,90,0.08)');
+  grd.addColorStop(1,'rgba(130,110,90,0)');
+  cx.fillStyle=grd;
+  cx.beginPath();
+  cx.ellipse(x,y+8,50,12,0,0,Math.PI*2);
+  cx.fill();
+}
+
+function drawFlower(x,y,size,petalColor,centerColor,ftype,fp,progress,time){
+  const f=Math.min(progress,1);
+  if(f<0.05)return;
+  const r=size*f;
+  const sway=Math.sin(time*0.001+ftype.length*0.05)*1.2;
+  const {petals:nP,layers:nL,pShape,pWidth,center:cSize}=fp;
+  const ppb=Math.floor(nP/nL); // petals per layer
+
+  for(let l=0;l<nL;l++){
+    const layerScale=1-l*0.15;
+    const petalsInLayer=l===nL-1?nP-l*ppb:ppb;
+    const layerR=r*layerScale;
+    const layerColor=l===0?petalColor:lighten(petalColor,15);
+    for(let i=0;i<petalsInLayer;i++){
+      const a=(i/petalsInLayer)*Math.PI*2+(l*0.3)+sway*0.01*l;
+      const pLen=layerR*pShape*(0.8+0.2*Math.sin(i*1.3+time*0.0005));
+      const pWid=layerR*pWidth*(0.7+0.3*Math.cos(i*1.7+time*0.0003));
+      drawPetal(cx,cx,x,y,a,pLen,pWid,layerColor,f);
+    }
+  }
+
+  // Center disc
+  const cr=r*cSize;
+  cx.beginPath();
+  cx.arc(x,y,Math.max(cr,3),0,Math.PI*2);
+  cx.fillStyle=centerColor;
+  cx.globalAlpha=0.85*f;
+  cx.fill();
+
+  // Stamens (tiny dots around center)
+  const nStamens=Math.floor(6+size*0.3);
+  for(let i=0;i<nStamens;i++){
+    const a=(i/nStamens)*Math.PI*2+sway*0.05+time*0.0002;
+    const sd=cr*(0.5+0.4*Math.sin(i*2.1));
+    const sx=x+Math.cos(a)*sd;
+    const sy=y+Math.sin(a)*sd;
+    cx.beginPath();
+    cx.arc(sx,sy,1+0.5*Math.sin(time*0.003+i),0,Math.PI*2);
+    const stColors=['#f5e6c8','#e8d5a0','#f0dbb0','#d4a373'];
+    cx.fillStyle=stColors[i%stColors.length];
+    cx.globalAlpha=0.5*f;
+    cx.fill();
+  }
+  cx.globalAlpha=1;
+}
+
+function lighten(hex,amt){
+  const r=parseInt(hex.slice(1,3),16);
+  const g=parseInt(hex.slice(3,5),16);
+  const b=parseInt(hex.slice(5,7),16);
+  const nr=Math.min(255,r+amt);
+  const ng=Math.min(255,g+amt);
+  const nb=Math.min(255,b+amt);
+  return `rgb(${nr},${ng},${nb})`;
 }
 
 function draw(t){
   cx.fillStyle=C.bg;cx.fillRect(0,0,W,H);
-  const gd=cx.createRadialGradient(W/2,H*0.82,0,W/2,H*0.82,H*0.35);
-  gd.addColorStop(0,'rgba(160,130,105,0.05)');gd.addColorStop(1,'rgba(0,0,0,0)');
+
+  // Ambient ground glow
+  const gd=cx.createRadialGradient(W/2,H*0.8,0,W/2,H*0.8,H*0.3);
+  gd.addColorStop(0,'rgba(180,160,140,0.04)');
+  gd.addColorStop(1,'rgba(0,0,0,0)');
   cx.fillStyle=gd;cx.fillRect(0,0,W,H);
+
   if(gr){prog+=C.growRate;if(prog>=1){prog=1;gr=false;}}
 
-  // Draw segments (branch segments first, then trunk on top)
+  // Ground
+  const by=segs.length>0?segs[0].y1:0;
+  drawGround(W/2,by);
+
+  // Stems (draw branches first, then main stem on top)
   cx.lineCap='round';cx.lineJoin='round';
   for(const s of segs){
-    const f=Math.min(s.g+0.025,1);
+    const f=Math.min(s.g+0.02,1);
     s.g=f;if(f<=0)continue;
     const ex=s.x1+(s.x2-s.x1)*f,ey=s.y1+(s.y2-s.y1)*f;
-    const mx=(s.x1+ex)/2-8,my=(s.y1+ey)/2-4;
+    const mx=(s.x1+ex)/2-6,my=(s.y1+ey)/2-3;
     cx.beginPath();cx.moveTo(s.x1,s.y1);
     cx.quadraticCurveTo(mx,my,ex,ey);
-    cx.strokeStyle=C.stem;cx.lineWidth=s.th;cx.stroke();
+    const isThick=s.th>3;
+    cx.strokeStyle=isThick?C.stemDark:C.stem;
+    cx.lineWidth=s.th;cx.stroke();
   }
-
-  // Highlight trunk center line
-  cx.globalAlpha=0.1;
-  cx.strokeStyle='rgba(220,195,170,0.4)';cx.lineWidth=1;
-  for(const s of segs){
-    const f=Math.min(s.g+0.025,1);if(f<=0)continue;
-    const ex=s.x1+(s.x2-s.x1)*f,ey=s.y1+(s.y2-s.y1)*f;
-    const mx=(s.x1+ex)/2-8,my=(s.y1+ey)/2-4;
-    cx.beginPath();cx.moveTo(s.x1,s.y1);cx.quadraticCurveTo(mx,my,ex,ey);cx.stroke();
-  }
-  cx.globalAlpha=1;
 
   // Leaves
   for(const l of leaves){
-    const f=Math.min(l.g+0.03,1);l.g=f;if(f<0.05)continue;
-    cx.save();cx.translate(l.x,l.y);cx.rotate(l.an);cx.scale(f,f);
-    cx.beginPath();cx.moveTo(0,0);
-    cx.quadraticCurveTo(l.sz*0.4,-l.sz*0.5,l.sz,0);
-    cx.quadraticCurveTo(l.sz*0.4,l.sz*0.5,0,0);
-    cx.fillStyle=l.co;cx.globalAlpha=0.4+0.2*f;cx.fill();
-    cx.restore();
+    drawLeaf(cx,cx,l.x,l.y,l.angle,l.len,l.wid,l.co,l.g);
+    l.g+=0.025;
   }
 
-  // Blooms
+  // Flowers
   for(const b of blooms){
-    const f=Math.min(b.g+0.02,1);b.g=f;if(f<0.05)continue;
-    const r=b.sz*f;if(r<1)continue;
-    const sway=Math.sin(t*0.001+b.ro*3)*1.5;
-    for(let i=0;i<b.pc;i++){
-      const a=b.ro+(i/b.pc)*Math.PI*2+sway*0.02;
-      const px=b.x+Math.cos(a)*r*0.38,py=b.y+Math.sin(a)*r*0.38;
-      cx.save();cx.translate(px,py);cx.rotate(a);
-      cx.beginPath();cx.ellipse(0,0,r*0.38,r*0.22,0,0,Math.PI*2);
-      cx.fillStyle=b.co;cx.globalAlpha=0.55+0.3*Math.sin(t*0.002+i*1.3);cx.fill();
-      cx.restore();
+    b.g+=0.015;
+    drawFlower(b.x,b.y,b.sz,b.co,b.c2,b.ftype,b.fp,b.g,t);
+  }
+
+  // Floating particles (ambient)
+  if(!gr){
+    cx.globalAlpha=0.02;
+    for(let i=0;i<6;i++){
+      const px=W*(0.15+0.7*Math.sin(t*0.0002+i*2.3));
+      const py=H*(0.1+0.5*Math.cos(t*0.0003+i*1.7));
+      cx.beginPath();cx.arc(px,py,0.8+0.3*Math.sin(t*0.001+i),0,Math.PI*2);
+      cx.fillStyle='rgba(180,170,150,0.5)';cx.fill();
     }
-    cx.beginPath();cx.arc(b.x,b.y,r*0.14,0,Math.PI*2);
-    cx.fillStyle='#f5e6c8';cx.globalAlpha=0.75;cx.fill();
     cx.globalAlpha=1;
   }
 
-  if(!gr){
-    cx.globalAlpha=0.03;
-    for(let i=0;i<10;i++){
-      const px=W*(0.15+0.7*Math.sin(t*0.00025+i*2.1));
-      const py=H*(0.1+0.5*Math.cos(t*0.00035+i*1.5));
-      cx.beginPath();cx.arc(px,py,1+Math.sin(t*0.001+i)*0.5,0,Math.PI*2);
-      cx.fillStyle='#f5e6c8';cx.fill();
-    }
-    cx.globalAlpha=1;
-  }
   requestAnimationFrame(draw);
 }
 
 function load(code){
-  const f=FLAGS[code];if(f)pal=f.c;
+  const f=FLAGS[code];if(f)pal=[...f.c];
   const ep={IN:1400,JP:125,FR:68,BR:213,ZA:60,MX:128,NO:5.4,TH:70,MA:37,NG:218,CO:52,VN:100,PT:10,GR:10,US:331};
   const ea={IN:3287,JP:378,FR:551,BR:8516,ZA:1221,MX:1964,NO:385,TH:513,MA:711,NG:924,CO:1142,VN:331,PT:92,GR:132,US:9834};
   gen(ep[code]||100,(ea[code]||500)*1000);
-  document.getElementById('countryName').textContent=f.e+' '+f.n;
+  const fg=FLAGS[code];
+  ctryEl.innerHTML=`<span class="flag">${fg.e}</span> <span class="name" style="color:${pal[0]}">${fg.n}</span>`;
+  ctryEl.style.opacity='0';
+  setTimeout(()=>ctryEl.style.opacity='1',100);
   fetch('https://restcountries.com/v3.1/alpha/'+code).then(r=>r.json()).then(d=>{
     const c=d[0];
     if(c&&c.population)gen(c.population/1e6,c.area||(ea[code]||500)*1000);
-    document.getElementById('countryMeta').textContent=c&&c.capital?c.capital[0]:'';
   }).catch(()=>{});
 }
 
