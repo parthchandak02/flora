@@ -3,340 +3,489 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Flora — Generative Country Blooms</title>
+<title>flora — botanical country data</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-html,body{width:100%;height:100%;overflow:hidden;background:#faf7f2}
-canvas{display:block;width:100%;height:100%}
-#desc{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);color:rgba(0,0,0,0.18);font:12px/1.4 system-ui,-apple-system,sans-serif;text-align:center;pointer-events:none;letter-spacing:0.02em;white-space:nowrap;z-index:5}
-#ctry{position:fixed;bottom:52px;left:50%;transform:translateX(-50%);font:14px/1 system-ui,-apple-system,sans-serif;text-align:center;pointer-events:none;z-index:5;transition:opacity 0.4s}
-#ctry .flag{font-size:18px}
-#ctry .name{font-weight:450;letter-spacing:0.03em}
-#tap-hint{position:fixed;top:28px;left:50%;transform:translateX(-50%);color:rgba(0,0,0,0.12);font:10px/1 system-ui,-apple-system,sans-serif;letter-spacing:0.12em;pointer-events:none;z-index:5;text-transform:uppercase}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;overflow:hidden;background:#f5f0e8;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+canvas{display:block;width:100%;height:100%;}
+#info{position:fixed;bottom:0;left:0;right:0;pointer-events:none;z-index:10;text-align:center;padding:16px 20px 28px;font-family:Georgia,'Times New Roman',serif;}
+#info .name{font-size:22px;color:#5d4037;letter-spacing:0.5px;margin-bottom:2px;opacity:0;transition:opacity 0.8s ease;}
+#info .pop{font-size:13px;color:rgba(0,0,0,0.5);opacity:0;transition:opacity 0.8s ease;}
+#info .desc{font-size:12px;color:rgba(0,0,0,0.3);margin-top:18px;font-style:italic;letter-spacing:0.3px;}
+#info.show .name,#info.show .pop{opacity:1;}
+#tap-hint{position:fixed;bottom:110px;left:50%;transform:translateX(-50%);z-index:10;font-family:Georgia,serif;font-size:13px;color:rgba(0,0,0,0.25);pointer-events:none;opacity:0;transition:opacity 1.5s ease;letter-spacing:1px;}
+#tap-hint.show{opacity:1;}
+#loading{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:20;font-family:Georgia,serif;font-size:16px;color:rgba(0,0,0,0.3);letter-spacing:2px;}
+#loading.hidden{opacity:0;transition:opacity 0.8s ease;pointer-events:none;}
 </style>
 </head>
 <body>
-<div id="tap-hint">tap for new bloom</div>
 <canvas id="c"></canvas>
-<div id="ctry"></div>
-<div id="desc">Each country's story grows into a flower — population shapes the stem, flag colors bloom into petals</div>
+<div id="info"><div class="name"></div><div class="pop"></div><div class="desc">each country grows into a flower · tap to drift</div></div>
+<div id="tap-hint">↻ tap for next</div>
+<div id="loading">gathering seeds …</div>
 <script>
-const C={bg:'#faf7f2',stem:'rgba(110,130,90,0.7)',stemDark:'rgba(80,100,60,0.85)',growRate:0.015};
-const FLAGS={
-  IN:{c:['#ff9933','#ffffff','#138808','#000080'],n:'India',e:'🇮🇳',ft:'marigold'},
-  JP:{c:['#f5f0eb','#bc002d','#2e2e2e','#d4a373'],n:'Japan',e:'🇯🇵',ft:'cherry'},
-  FR:{c:['#002395','#ffffff','#ed2939','#d4af37'],n:'France',e:'🇫🇷',ft:'iris'},
-  BR:{c:['#009739','#ffdf00','#002776','#ffffff'],n:'Brazil',e:'🇧🇷',ft:'orchid'},
-  ZA:{c:['#007a4d','#ffb612','#de3831','#002395'],n:'South Africa',e:'🇿🇦',ft:'protea'},
-  MX:{c:['#006847','#ffffff','#ce1126','#8b4513'],n:'Mexico',e:'🇲🇽',ft:'dahlia'},
-  NO:{c:['#ba0c2f','#ffffff','#002868','#c0c0c0'],n:'Norway',e:'🇳🇴',ft:'heather'},
-  TH:{c:['#ed1c24','#ffffff','#241d4f','#f4a920'],n:'Thailand',e:'🇹🇭',ft:'lotus'},
-  MA:{c:['#c1272d','#ffffff','#000000','#006233'],n:'Morocco',e:'🇲🇦',ft:'rose'},
-  NG:{c:['#008751','#ffffff','#000000','#787878'],n:'Nigeria',e:'🇳🇬',ft:'calla'},
-  CO:{c:['#ffcd00','#003893','#ce1126','#ffffff'],n:'Colombia',e:'🇨🇴',ft:'rose'},
-  VN:{c:['#da251d','#ffcc00','#ffffff','#000000'],n:'Vietnam',e:'🇻🇳',ft:'lotus'},
-  PT:{c:['#006600','#ff0000','#ffff00','#003399'],n:'Portugal',e:'🇵🇹',ft:'carnation'},
-  GR:{c:['#0d5eaf','#ffffff','#000000','#c0c0c0'],n:'Greece',e:'🇬🇷',ft:'laurel'},
-  US:{c:['#b22234','#ffffff','#3c3b6e','#c0c0c0'],n:'United States',e:'🇺🇸',ft:'california poppy'},
+// ─── CONFIG ───────────────────────────────────────────────
+const CONFIG = {
+  palette: {
+    bg: '#f5f0e8',
+    surface: '#ebe3d5',
+    accent1: '#8d6e63',
+    accent2: '#a1887f',
+    accent3: '#ef9a9a',
+    highlight: '#26a69a',
+    text: 'rgba(0,0,0,0.7)',
+    dark: '#5d4037',
+  },
+  countries: ['USA','India','China','Brazil','Japan','France','UK','AU','EG','MX','RU','KR','NG','DE','IT'],
+  petalMin: 5,
+  petalMax: 12,
+  stemBase: 60,
+  stemScale: 160,
+  animDuration: 2500,
+  transitionDuration: 600,
+  globalAlpha: 0.75,
 };
-const CODES=Object.keys(FLAGS);
-const ca=document.getElementById('c'),cx=ca.getContext('2d');
-const ctryEl=document.getElementById('ctry');
-let W,H,dp;
-function rs(){
-  dp=Math.min(window.devicePixelRatio||1,2);
-  W=window.innerWidth;H=window.innerHeight;
-  ca.width=W*dp;ca.height=H*dp;
-  ca.style.width=W+'px';ca.style.height=H+'px';
-  cx.setTransform(dp,0,0,dp,0,0);
+
+// ─── FALLBACK DATA ───────────────────────────────────────
+const FALLBACK = [
+  {name:{common:'United States'},population:335000000,area:9834000,cca2:'US',flags:{png:'https://flagcdn.com/w320/us.png'}},
+  {name:{common:'India'},population:1450000000,area:3287000,cca2:'IN',flags:{png:'https://flagcdn.com/w320/in.png'}},
+  {name:{common:'China'},population:1420000000,area:9597000,cca2:'CN',flags:{png:'https://flagcdn.com/w320/cn.png'}},
+  {name:{common:'Brazil'},population:216000000,area:8516000,cca2:'BR',flags:{png:'https://flagcdn.com/w320/br.png'}},
+  {name:{common:'Japan'},population:123000000,area:378000,cca2:'JP',flags:{png:'https://flagcdn.com/w320/jp.png'}},
+  {name:{common:'France'},population:68000000,area:551000,cca2:'FR',flags:{png:'https://flagcdn.com/w320/fr.png'}},
+  {name:{common:'United Kingdom'},population:68000000,area:243000,cca2:'GB',flags:{png:'https://flagcdn.com/w320/gb.png'}},
+  {name:{common:'Australia'},population:27000000,area:7692000,cca2:'AU',flags:{png:'https://flagcdn.com/w320/au.png'}},
+  {name:{common:'Egypt'},population:111000000,area:1002000,cca2:'EG',flags:{png:'https://flagcdn.com/w320/eg.png'}},
+  {name:{common:'Mexico'},population:129000000,area:1964000,cca2:'MX',flags:{png:'https://flagcdn.com/w320/mx.png'}},
+  {name:{common:'Russia'},population:144000000,area:17100000,cca2:'RU',flags:{png:'https://flagcdn.com/w320/ru.png'}},
+  {name:{common:'South Korea'},population:52000000,area:100000,cca2:'KR',flags:{png:'https://flagcdn.com/w320/kr.png'}},
+  {name:{common:'Nigeria'},population:224000000,area:923000,cca2:'NG',flags:{png:'https://flagcdn.com/w320/ng.png'}},
+  {name:{common:'Germany'},population:84000000,area:357000,cca2:'DE',flags:{png:'https://flagcdn.com/w320/de.png'}},
+  {name:{common:'Italy'},population:59000000,area:301000,cca2:'IT',flags:{png:'https://flagcdn.com/w320/it.png'}},
+];
+
+// ─── FLAG COLOR MAPS (manual from known flags) ────────────
+const FLAG_COLORS = {
+  US: ['#b22234','#ffffff','#3c3b6e'],
+  IN: ['#ff9933','#ffffff','#138808','#000080'],
+  CN: ['#de2910','#ffde00'],
+  BR: ['#009739','#ffdf00','#002776','#ffffff'],
+  JP: ['#ffffff','#bc002d'],
+  FR: ['#002395','#ffffff','#ed2939'],
+  GB: ['#012169','#ffffff','#c8102e'],
+  AU: ['#00008b','#ffffff','#e00000'],
+  EG: ['#ce1126','#ffffff','#000000','#c09300'],
+  MX: ['#006341','#ffffff','#ce1126'],
+  RU: ['#ffffff','#0039a6','#d52b1e'],
+  KR: ['#ffffff','#003478','#c60c30','#000000'],
+  NG: ['#ffffff','#008751'],
+  DE: ['#000000','#dd0000','#ffcc00'],
+  IT: ['#009246','#ffffff','#ce2b37'],
+};
+
+// ─── CANVAS SETUP ─────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, cx, cy;
+
+function resize() {
+  const dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  cx = W / 2;
+  cy = H * 0.55;
 }
-rs();window.addEventListener('resize',rs);
-let pal=['#d4a373','#c46a4d','#7a9b7a','#e8d5c4'];
-let segs=[],leaves=[],blooms=[],petals=[],stamens=[];
-let prog=0,gr=true;
-function pk(){return pal[Math.floor(Math.random()*pal.length)]}
-function cl(v,m,M){return Math.max(m,Math.min(M,v))}
+resize();
+window.addEventListener('resize', resize);
 
-// ─── FLOWER TYPES ───
-function flowerParams(type){
-  const types={
-    marigold:{petals:12,layers:2,pShape:0.7,pWidth:0.5,center:0.3},
-    cherry:{petals:5,layers:1,pShape:0.9,pWidth:0.7,center:0.15},
-    iris:{petals:6,layers:1,pShape:0.5,pWidth:0.3,center:0.25},
-    orchid:{petals:5,layers:1,pShape:1.2,pWidth:0.4,center:0.2},
-    protea:{petals:18,layers:3,pShape:0.4,pWidth:0.6,center:0.35},
-    dahlia:{petals:10,layers:2,pShape:0.5,pWidth:0.55,center:0.2},
-    heather:{petals:8,layers:1,pShape:0.6,pWidth:0.3,center:0.2},
-    lotus:{petals:8,layers:2,pShape:0.8,pWidth:0.45,center:0.15},
-    rose:{petals:14,layers:2,pShape:0.6,pWidth:0.6,center:0.2},
-    calla:{petals:1,layers:1,pShape:2.0,pWidth:0.3,center:0.3},
-    carnation:{petals:20,layers:3,pShape:0.4,pWidth:0.5,center:0.15},
-    laurel:{petals:4,layers:1,pShape:0.7,pWidth:0.5,center:0.2},
-    'california poppy':{petals:4,layers:1,pShape:1.0,pWidth:0.6,center:0.2},
-  };
-  return types[type]||{petals:8,layers:2,pShape:0.6,pWidth:0.5,center:0.2};
-}
+// ─── STATE ────────────────────────────────────────────────
+let countries = [];
+let currentIdx = 0;
+let animT = 0;         // 0..1 growth animation progress
+let transAlpha = 1;    // 0..1 transition crossfade
+let state = 'loading'; // 'loading' | 'growing' | 'idle' | 'transition'
+let lastTime = 0;
+let needNew = true;
 
-function gen(popM,areaKm2){
-  segs=[];leaves=[];blooms=[];petals=[];stamens=[];prog=0;gr=true;
-  const sc=cl(Math.sqrt(areaKm2/100000),0.8,1.4);
-  const dn=cl(popM/200,1.5,5);
-  const mx=W/2,by=H*0.78;
-  const stemH=H*0.38*sc;
-  const nT=Math.floor(10+dn*3);
-  const sLen=stemH/nT;
+const infoEl = document.querySelector('#info');
+const nameEl = infoEl.querySelector('.name');
+const popEl = infoEl.querySelector('.pop');
+const hintEl = document.getElementById('tap-hint');
+const loadingEl = document.getElementById('loading');
 
-  // Main stem — gentle curve
-  for(let i=0;i<nT;i++){
-    const t=i/nT;
-    const sw=Math.sin(t*Math.PI*0.8)*5*(1-t*0.5);
-    const ex=Math.sin((i+1)/nT*Math.PI*0.8)*5*(1-(i+1)/nT*0.5);
-    segs.push({x1:mx+sw,y1:by-i*sLen,x2:mx+ex,y2:by-(i+1)*sLen,th:5*(1-t*0.4)+0.5,g:0});
-  }
-
-  // Side stems + flowers
-  const nB=Math.floor(3+dn*2);
-  const ft=FLAGS[CODES.find(k=>FLAGS[k].c===pal)]||{ft:'rose'};
-  const fp=flowerParams(ft.ft||'rose');
-
-  for(let i=0;i<nB;i++){
-    const idx=Math.floor(2+(i/nB)*(nT-5));
-    if(idx>=nT)break;
-    const p=segs[idx];
-    const side=i%2===0?1:-1;
-    const angle=-Math.PI/2+side*(Math.PI/3+Math.random()*0.3);
-    const bSegs=2+Math.floor(Math.random()*2);
-    const segL=sLen*2.8;
-    let px=(p.x1+p.x2)/2,py=(p.y1+p.y2)/2;
-    let lx=px,ly=py;
-    for(let j=0;j<bSegs;j++){
-      const t=j/bSegs;
-      const drop=Math.sin(t*Math.PI)*6*side;
-      const nx=px+Math.cos(angle)*segL+drop;
-      const ny=py+Math.sin(angle)*segL;
-      const th=Math.max(0.3,p.th*0.7*(1-j/bSegs*0.3));
-      segs.push({x1:px,y1:py,x2:nx,y2:ny,th,g:0});
-      px=nx;py=ny;
-      // Leaf on this stem segment
-      if(Math.random()<0.6){
-        const lfSide=Math.random()<0.5?1:-1;
-        const lfAngle=angle+lfSide*(Math.PI/4+Math.random()*0.3);
-        const lfLen=8+Math.random()*16;
-        leaves.push({x:(nx+px)/2,y:(ny+py)/2,angle:lfAngle,len:lfLen,wid:4+Math.random()*5,co:'rgba(110,140,90,0.5)',g:0});
-      }
+// ─── DATA FETCH ────────────────────────────────────────────
+async function fetchData() {
+  try {
+    const res = await fetch('https://restcountries.com/v3.1/all');
+    const all = await res.json();
+    const wanted = new Set(CONFIG.countries);
+    const lookup = {};
+    // Also match by cca2
+    for (const c of all) lookup[c.cca2] = c;
+    // Build ordered list
+    const result = [];
+    for (const code of CONFIG.countries) {
+      let match = all.find(c => c.cca2 === code);
+      if (!match) match = all.find(c => c.name?.common?.toLowerCase().includes(code.toLowerCase()));
+      if (match) result.push(match);
     }
-    // Flower at branch tip
-    const scale=0.6+0.4*(1-i/nB);
-    blooms.push({x:px,y:py,sz:20+Math.random()*20*scale,co:pk(),c2:pk(),g:0,ftype:ft.ft||'rose',fp:fp,scale:scale});
-  }
-
-  // Top flower (main bloom — large, dramatic)
-  const tp=segs[nT-1];
-  const topY=tp.y2-5;
-  blooms.push({x:(tp.x1+tp.x2)/2,y:topY,sz:65,co:pk(),c2:pk(),g:0,ftype:ft.ft||'rose',fp:fp,scale:1.0});
-
-  // Leaves along main stem
-  for(let i=3;i<nT-2;i+=2){
-    const p=segs[i];
-    const lfSide=Math.random()<0.5?1:-1;
-    const lfAngle=-Math.PI/2+lfSide*(Math.PI/4+Math.random()*0.2);
-    const lfLen=12+Math.random()*20;
-    leaves.push({x:(p.x1+p.x2)/2,y:(p.y1+p.y2)/2,angle:lfAngle,len:lfLen,wid:4+Math.random()*6,co:'rgba(100,130,80,0.45)',g:0});
-  }
-
-  // Ground grass tufts
-  for(let i=0;i<20;i++){
-    const gx=mx-120+Math.random()*240;
-    const gh=6+Math.random()*18;
-    leaves.push({x:gx,y:by,angle:-Math.PI/2+(-0.3+Math.random()*0.6),len:gh,wid:1.5+Math.random()*2,co:'rgba(100,130,80,0.25)',g:0});
+    if (result.length >= 5) return result;
+    throw new Error('Not enough matches');
+  } catch(e) {
+    console.warn('API fetch failed, using fallback:', e);
+    return FALLBACK;
   }
 }
 
-// ─── DRAW FUNCTIONS ───
+// Format population
+function fmtPop(n) {
+  if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return ''+n;
+}
 
-function drawPetal(cx,ctx,x,y,angle,len,width,color,progress){
+// Get flower params from country
+function getParams(c) {
+  const pop = c.population || 1;
+  const area = c.area || 1000;
+  const code = c.cca2;
+  const density = pop / Math.max(area, 1);
+  
+  // Stem height: log scale for visual balance
+  const stemH = CONFIG.stemBase + Math.log10(pop) / Math.log10(1.5e9) * CONFIG.stemScale;
+  
+  // Petal count: 5-12 based on area
+  const areaNorm = Math.min(1, Math.log10(area + 1) / Math.log10(1.7e7));
+  const petals = Math.round(CONFIG.petalMin + areaNorm * (CONFIG.petalMax - CONFIG.petalMin));
+  
+  // Branch density: 2-5 branches based on population density
+  const densNorm = Math.min(1, Math.log10(density + 1) / 4);
+  const branches = 2 + Math.round(densNorm * 3);
+  
+  // Petal colors from flag map
+  const colors = FLAG_COLORS[code] || ['#8d6e63','#a1887f','#ef9a9a'];
+  
+  // Stem width based on population
+  const stemW = 2 + Math.log10(pop) / Math.log10(1.5e9) * 5;
+  
+  // Flower radius based on area
+  const radius = 30 + areaNorm * 60;
+  
+  return { stemH, petals, branches, colors, stemW, radius, density, areaNorm };
+}
+
+// ─── DRAWING ───────────────────────────────────────────────
+function drawPaperTexture() {
   ctx.save();
-  ctx.translate(x,y);
+  ctx.strokeStyle = 'rgba(0,0,0,0.03)';
+  ctx.lineWidth = 0.5;
+  for (let y = 20; y < H; y += 18 + Math.random() * 12) {
+    ctx.beginPath();
+    ctx.moveTo(10, y);
+    ctx.lineTo(W - 20 + Math.random() * 20, y + Math.random() * 3 - 1.5);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawLeaf(ctx, x, y, size, angle, color, alpha) {
+  ctx.save();
+  ctx.translate(x, y);
   ctx.rotate(angle);
-  const f=Math.min(progress*1.3,1);
-  const r=len*f,w=width*f;
+  ctx.globalAlpha = alpha * 0.7;
+  ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.moveTo(0,0);
-  ctx.bezierCurveTo(w*0.4,-r*0.5,w*1.1,-r*0.85,0,-r);
-  ctx.bezierCurveTo(-w*1.1,-r*0.85,-w*0.4,-r*0.5,0,0);
-  ctx.closePath();
-  ctx.fillStyle=color;
+  ctx.moveTo(0, 0);
+  ctx.bezierCurveTo(size * 0.5, -size * 0.3, size * 0.8, 0, size * 0.5, size * 0.3);
+  ctx.bezierCurveTo(size * 0.8, 0, size * 0.5, -size * 0.3, 0, 0);
   ctx.fill();
   ctx.restore();
 }
 
-function drawLeaf(cx,ctx,x,y,angle,len,wid,color,progress){
-  const f=Math.min(progress*1.5,1);
-  if(f<0.05)return;
+function drawStem(ctx, x, yBot, yTop, width, progress, alpha) {
   ctx.save();
-  ctx.translate(x,y);
-  ctx.rotate(angle);
-  const r=len*f,w=wid*f;
+  ctx.globalAlpha = alpha * 0.85;
+  ctx.strokeStyle = '#5d4037';
+  ctx.lineWidth = width;
+  ctx.lineCap = 'round';
+  
+  const drawH = (yTop - yBot) * progress;
+  const yEnd = yBot + drawH;
+  
+  // Gentle organic curve
   ctx.beginPath();
-  ctx.moveTo(0,0);
-  ctx.quadraticCurveTo(w*0.6,-r*0.5,0,-r);
-  ctx.quadraticCurveTo(-w*0.6,-r*0.5,0,0);
-  ctx.fillStyle=color;
-  ctx.globalAlpha=0.6+0.4*f;
-  ctx.fill();
-  ctx.globalAlpha=1;
+  ctx.moveTo(x, yBot);
+  const cp1x = x + Math.sin(Date.now() / 8000) * 3;
+  const cp1y = yBot + drawH * 0.3;
+  const cp2x = x + Math.sin(Date.now() / 10000 + 0.5) * 5;
+  const cp2y = yBot + drawH * 0.6;
+  ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, x + Math.sin(Date.now() / 12000) * 2, yEnd);
+  ctx.stroke();
+  
+  ctx.restore();
+  return yEnd;
+}
+
+function drawBranches(ctx, x, yBot, yTop, count, progress, alpha) {
+  ctx.save();
+  const spread = 40 + Math.random() * 10;
+  for (let i = 0; i < count; i++) {
+    const t = (i + 1) / (count + 1);
+    const branchY = yBot + (yTop - yBot) * t * progress;
+    if (branchY <= yBot) continue;
+    const side = (i % 2 === 0) ? 1 : -1;
+    const bLen = 15 + Math.random() * 20 * progress;
+    const bAngle = side * (0.3 + Math.random() * 0.4);
+    
+    ctx.globalAlpha = alpha * 0.5;
+    ctx.strokeStyle = '#5d4037';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(x, branchY);
+    const endX = x + Math.cos(bAngle) * bLen * side;
+    const endY = branchY - Math.sin(Math.abs(bAngle)) * bLen * 0.5;
+    ctx.quadraticCurveTo(x + Math.cos(bAngle) * bLen * 0.5 * side, branchY - bLen * 0.3, endX, endY);
+    ctx.stroke();
+    
+    // Tiny leaf at tip
+    drawLeaf(ctx, endX, endY, 4 + Math.random() * 3, bAngle + (side > 0 ? 0.5 : -0.5), CONFIG.palette.accent2, alpha * progress);
+  }
   ctx.restore();
 }
 
-function drawGround(x,y){
-  // Subtle soil mound at stem base
-  const grd=cx.createRadialGradient(x,y+4,0,x,y+4,40);
-  grd.addColorStop(0,'rgba(130,110,90,0.08)');
-  grd.addColorStop(1,'rgba(130,110,90,0)');
-  cx.fillStyle=grd;
-  cx.beginPath();
-  cx.ellipse(x,y+8,50,12,0,0,Math.PI*2);
-  cx.fill();
+function drawPetal(ctx, px, py, angle, length, width, color, progress, alpha) {
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(angle);
+  ctx.globalAlpha = alpha * CONFIG.globalAlpha * (0.7 + Math.random() * 0.2);
+  ctx.fillStyle = color;
+  
+  const pLen = length * progress;
+  const pW = width * (0.5 + 0.5 * progress);
+  
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.bezierCurveTo(
+    pW * 0.8, -pLen * 0.3,
+    pW * 0.3, -pLen * 0.8,
+    0, -pLen
+  );
+  ctx.bezierCurveTo(
+    -pW * 0.3, -pLen * 0.8,
+    -pW * 0.8, -pLen * 0.3,
+    0, 0
+  );
+  ctx.fill();
+  
+  // Subtle center line
+  ctx.globalAlpha *= 0.3;
+  ctx.strokeStyle = '#5d4037';
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, -pLen * 0.9);
+  ctx.stroke();
+  
+  ctx.restore();
 }
 
-function drawFlower(x,y,size,petalColor,centerColor,ftype,fp,progress,time){
-  const f=Math.min(progress,1);
-  if(f<0.05)return;
-  const r=size*f;
-  const sway=Math.sin(time*0.001+ftype.length*0.05)*1.2;
-  const {petals:nP,layers:nL,pShape,pWidth,center:cSize}=fp;
-  const ppb=Math.floor(nP/nL); // petals per layer
-
-  for(let l=0;l<nL;l++){
-    const layerScale=1-l*0.15;
-    const petalsInLayer=l===nL-1?nP-l*ppb:ppb;
-    const layerR=r*layerScale;
-    const layerColor=l===0?petalColor:lighten(petalColor,15);
-    for(let i=0;i<petalsInLayer;i++){
-      const a=(i/petalsInLayer)*Math.PI*2+(l*0.3)+sway*0.01*l;
-      const pLen=layerR*pShape*(0.8+0.2*Math.sin(i*1.3+time*0.0005));
-      const pWid=layerR*pWidth*(0.7+0.3*Math.cos(i*1.7+time*0.0003));
-      drawPetal(cx,cx,x,y,a,pLen,pWid,layerColor,f);
-    }
-  }
-
+function drawFlowerCenter(ctx, x, y, radius, progress, alpha) {
+  ctx.save();
+  ctx.globalAlpha = alpha * 0.9;
+  
   // Center disc
-  const cr=r*cSize;
-  cx.beginPath();
-  cx.arc(x,y,Math.max(cr,3),0,Math.PI*2);
-  cx.fillStyle=centerColor;
-  cx.globalAlpha=0.85*f;
-  cx.fill();
-
-  // Stamens (tiny dots around center)
-  const nStamens=Math.floor(8+size*0.4);
-  for(let i=0;i<nStamens;i++){
-    const a=(i/nStamens)*Math.PI*2+sway*0.05+time*0.0002;
-    const sd=cr*(0.6+0.3*Math.sin(i*2.1));
-    const sx=x+Math.cos(a)*sd;
-    const sy=y+Math.sin(a)*sd;
-    cx.beginPath();
-    cx.arc(sx,sy,1.5+0.8*Math.sin(time*0.003+i),0,Math.PI*2);
-    const stColors=['#f5e6c8','#e8d5a0','#f0dbb0','#d4a373'];
-    cx.fillStyle=stColors[i%stColors.length];
-    cx.globalAlpha=0.5*f;
-    cx.fill();
+  const r = radius * 0.25 * progress;
+  const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+  grad.addColorStop(0, CONFIG.palette.accent3);
+  grad.addColorStop(0.5, CONFIG.palette.accent1);
+  grad.addColorStop(1, CONFIG.palette.dark);
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Tiny dots around center
+  ctx.globalAlpha = alpha * 0.4 * progress;
+  ctx.fillStyle = CONFIG.palette.highlight;
+  const dotCount = 6 + Math.round(progress * 6);
+  for (let i = 0; i < dotCount; i++) {
+    const a = (i / dotCount) * Math.PI * 2 + Date.now() / 5000;
+    const dr = r * 0.6;
+    ctx.beginPath();
+    ctx.arc(x + Math.cos(a) * dr, y + Math.sin(a) * dr, 1.5, 0, Math.PI * 2);
+    ctx.fill();
   }
-  cx.globalAlpha=1;
+  
+  ctx.restore();
 }
 
-function lighten(hex,amt){
-  const r=parseInt(hex.slice(1,3),16);
-  const g=parseInt(hex.slice(3,5),16);
-  const b=parseInt(hex.slice(5,7),16);
-  const nr=Math.min(255,r+amt);
-  const ng=Math.min(255,g+amt);
-  const nb=Math.min(255,b+amt);
-  return `rgb(${nr},${ng},${nb})`;
+function drawFlower(ctx, c, progress, alpha) {
+  const p = getParams(c);
+  const flowerX = cx + Math.sin(Date.now() / 8000) * 5;
+  const flowerY = cy + H * 0.15;
+  const stemTop = flowerY - p.stemH * progress;
+  
+  // Stem
+  drawStem(ctx, flowerX, flowerY, flowerY - p.stemH, p.stemW, progress, alpha);
+  
+  // Branches
+  drawBranches(ctx, flowerX, flowerY, flowerY - p.stemH * 0.7, p.branches, progress, alpha);
+  
+  // Petals
+  const petalProgress = Math.min(1, progress * 1.3);
+  const petalLength = p.radius * 0.7;
+  const petalWidth = petalLength * 0.4;
+  
+  for (let i = 0; i < p.petals; i++) {
+    const angle = (i / p.petals) * Math.PI * 2 - Math.PI / 2;
+    const color = p.colors[i % p.colors.length];
+    const offset = Math.sin(Date.now() / 4000 + i * 1.5) * 2;
+    drawPetal(ctx, flowerX + offset, stemTop, angle, petalLength, petalWidth, color, petalProgress, alpha);
+  }
+  
+  // Sway animation for petals
+  const sway = Math.sin(Date.now() / 3000) * 2;
+  for (let i = 0; i < p.petals; i++) {
+    const angle = (i / p.petals) * Math.PI * 2 - Math.PI / 2 + sway * 0.02;
+    const color = p.colors[i % p.colors.length];
+    drawPetal(ctx, flowerX, stemTop, angle, petalLength * 0.85, petalWidth * 0.8, color, petalProgress * 0.7, alpha * 0.4);
+  }
+  
+  // Center
+  drawFlowerCenter(ctx, flowerX, stemTop, p.radius, progress, alpha);
+  
+  // Small floating particles (pollen)
+  for (let i = 0; i < 3; i++) {
+    const t = (Date.now() / 3000 + i * 1.7) % 1;
+    const px = flowerX + Math.sin(t * Math.PI * 2 + i) * 50 * progress;
+    const py = stemTop - 20 + Math.cos(t * Math.PI * 2 + i * 2) * 30 * progress;
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.2 * (1 - t);
+    ctx.fillStyle = CONFIG.palette.accent3;
+    ctx.beginPath();
+    ctx.arc(px, py, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
 }
 
-function draw(t){
-  cx.fillStyle=C.bg;cx.fillRect(0,0,W,H);
+// ─── INFO UPDATE ──────────────────────────────────────────
+function updateInfo(c, show) {
+  if (!c) return;
+  nameEl.textContent = c.name?.common || 'Unknown';
+  popEl.textContent = 'population ' + fmtPop(c.population || 0);
+  infoEl.classList.toggle('show', show);
+}
 
-  // Ambient ground glow
-  const gd=cx.createRadialGradient(W/2,H*0.8,0,W/2,H*0.8,H*0.3);
-  gd.addColorStop(0,'rgba(180,160,140,0.04)');
-  gd.addColorStop(1,'rgba(0,0,0,0)');
-  cx.fillStyle=gd;cx.fillRect(0,0,W,H);
-
-  if(gr){prog+=C.growRate;if(prog>=1){prog=1;gr=false;}}
-
-  // Ground
-  const by=segs.length>0?segs[0].y1:0;
-  drawGround(W/2,by);
-
-  // Stems (draw branches first, then main stem on top)
-  cx.lineCap='round';cx.lineJoin='round';
-  for(const s of segs){
-    const f=Math.min(s.g+0.02,1);
-    s.g=f;if(f<=0)continue;
-    const ex=s.x1+(s.x2-s.x1)*f,ey=s.y1+(s.y2-s.y1)*f;
-    const mx=(s.x1+ex)/2-6,my=(s.y1+ey)/2-3;
-    cx.beginPath();cx.moveTo(s.x1,s.y1);
-    cx.quadraticCurveTo(mx,my,ex,ey);
-    const isThick=s.th>3;
-    cx.strokeStyle=isThick?C.stemDark:C.stem;
-    cx.lineWidth=s.th;cx.stroke();
-  }
-
-  // Leaves
-  for(const l of leaves){
-    drawLeaf(cx,cx,l.x,l.y,l.angle,l.len,l.wid,l.co,l.g);
-    l.g+=0.025;
-  }
-
-  // Flowers
-  for(const b of blooms){
-    b.g+=0.015;
-    drawFlower(b.x,b.y,b.sz,b.co,b.c2,b.ftype,b.fp,b.g,t);
-  }
-
-  // Floating particles (ambient)
-  if(!gr){
-    cx.globalAlpha=0.02;
-    for(let i=0;i<6;i++){
-      const px=W*(0.15+0.7*Math.sin(t*0.0002+i*2.3));
-      const py=H*(0.1+0.5*Math.cos(t*0.0003+i*1.7));
-      cx.beginPath();cx.arc(px,py,0.8+0.3*Math.sin(t*0.001+i),0,Math.PI*2);
-      cx.fillStyle='rgba(180,170,150,0.5)';cx.fill();
+// ─── RENDER LOOP ───────────────────────────────────────────
+function render(time) {
+  const dt = lastTime ? Math.min(time - lastTime, 50) : 16;
+  lastTime = time;
+  
+  // Clear
+  ctx.fillStyle = CONFIG.palette.bg;
+  ctx.fillRect(0, 0, W, H);
+  
+  // Paper texture
+  drawPaperTexture();
+  
+  // State machine
+  switch(state) {
+    case 'loading':
+      // Just show background
+      break;
+      
+    case 'growing': {
+      animT += dt / CONFIG.animDuration;
+      if (animT >= 1) { animT = 1; state = 'idle'; }
+      const ease = 1 - Math.pow(1 - animT, 3); // ease-out cubic
+      const c = countries[currentIdx];
+      if (c) {
+        drawFlower(ctx, c, ease, 1);
+        if (ease > 0.3) updateInfo(c, true);
+        else infoEl.classList.remove('show');
+      }
+      break;
     }
-    cx.globalAlpha=1;
+    
+    case 'idle': {
+      const c = countries[currentIdx];
+      if (c) {
+        // Gentle idle sway
+        drawFlower(ctx, c, 1, 1);
+        updateInfo(c, true);
+      }
+      break;
+    }
+    
+    case 'transition': {
+      transAlpha -= dt / CONFIG.transitionDuration;
+      if (transAlpha <= 0) {
+        transAlpha = 0;
+        // Move to next
+        currentIdx = (currentIdx + 1) % countries.length;
+        state = 'growing';
+        animT = 0;
+        needNew = true;
+        infoEl.classList.remove('show');
+      }
+      // Draw current fading out
+      const oldIdx = currentIdx;
+      const oldC = countries[oldIdx];
+      if (oldC) {
+        drawFlower(ctx, oldC, 1, Math.max(0, transAlpha));
+      }
+      break;
+    }
   }
-
-  requestAnimationFrame(draw);
+  
+  // Subtle gradient overlay at bottom
+  const grad = ctx.createLinearGradient(0, H - 80, 0, H);
+  grad.addColorStop(0, 'transparent');
+  grad.addColorStop(1, CONFIG.palette.bg);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, H - 80, W, 80);
+  
+  requestAnimationFrame(render);
 }
 
-function load(code){
-  const f=FLAGS[code];if(f)pal=[...f.c];
-  const ep={IN:1400,JP:125,FR:68,BR:213,ZA:60,MX:128,NO:5.4,TH:70,MA:37,NG:218,CO:52,VN:100,PT:10,GR:10,US:331};
-  const ea={IN:3287,JP:378,FR:551,BR:8516,ZA:1221,MX:1964,NO:385,TH:513,MA:711,NG:924,CO:1142,VN:331,PT:92,GR:132,US:9834};
-  gen(ep[code]||100,(ea[code]||500)*1000);
-  const fg=FLAGS[code];
-  ctryEl.innerHTML=`<span class="flag">${fg.e}</span> <span class="name" style="color:${pal[0]}">${fg.n}</span>`;
-  ctryEl.style.opacity='0';
-  setTimeout(()=>ctryEl.style.opacity='1',100);
-  fetch('https://restcountries.com/v3.1/alpha/'+code).then(r=>r.json()).then(d=>{
-    const c=d[0];
-    if(c&&c.population)gen(c.population/1e6,c.area||(ea[code]||500)*1000);
-  }).catch(()=>{});
+// ─── TOUCH / CLICK ────────────────────────────────────────
+function handleTap(e) {
+  e.preventDefault();
+  if (state === 'growing' || state === 'loading') return;
+  if (state === 'transition') return;
+  if (countries.length < 2) return;
+  state = 'transition';
+  transAlpha = 1;
+  // Hide hint after first tap
+  hintEl.classList.remove('show');
+}
+canvas.addEventListener('click', handleTap);
+canvas.addEventListener('touchstart', handleTap, {passive:false});
+
+// ─── INIT ──────────────────────────────────────────────────
+async function init() {
+  countries = await fetchData();
+  loadingEl.classList.add('hidden');
+  setTimeout(() => {
+    state = 'growing';
+    animT = 0;
+    updateInfo(countries[0], false);
+    // Show tap hint after a delay
+    setTimeout(() => hintEl.classList.add('show'), CONFIG.animDuration + 1000);
+  }, 400);
+  requestAnimationFrame(render);
 }
 
-let lt=0;
-function tap(){
-  if(Date.now()-lt<300)return;
-  lt=Date.now();segs=[];leaves=[];blooms=[];gr=true;prog=0;
-  load(CODES[Math.floor(Math.random()*CODES.length)]);
-}
-ca.addEventListener('click',tap);
-ca.addEventListener('touchstart',(e)=>{tap();e.preventDefault()},{passive:false});
-
-load(CODES[Math.floor(Math.random()*CODES.length)]);
-draw(0);
+init();
 </script>
 </body>
 </html>
