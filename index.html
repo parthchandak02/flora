@@ -130,10 +130,10 @@ function gen(popM,areaKm2){
     blooms.push({x:px,y:py,sz:20+Math.random()*20*scale,co:pk(),c2:pk(),g:0,ftype:ft.ft||'rose',fp:fp,scale:scale});
   }
 
-  // Top flower (main bloom — largest)
+  // Top flower (main bloom — large, dramatic)
   const tp=segs[nT-1];
   const topY=tp.y2-5;
-  blooms.push({x:(tp.x1+tp.x2)/2,y:topY,sz:45,co:pk(),c2:pk(),g:0,ftype:ft.ft||'rose',fp:fp,scale:1.0});
+  blooms.push({x:(tp.x1+tp.x2)/2,y:topY,sz:65,co:pk(),c2:pk(),g:0,ftype:ft.ft||'rose',fp:fp,scale:1.0});
 
   // Leaves along main stem
   for(let i=3;i<nT-2;i+=2){
@@ -229,14 +229,14 @@ function drawFlower(x,y,size,petalColor,centerColor,ftype,fp,progress,time){
   cx.fill();
 
   // Stamens (tiny dots around center)
-  const nStamens=Math.floor(6+size*0.3);
+  const nStamens=Math.floor(8+size*0.4);
   for(let i=0;i<nStamens;i++){
     const a=(i/nStamens)*Math.PI*2+sway*0.05+time*0.0002;
-    const sd=cr*(0.5+0.4*Math.sin(i*2.1));
+    const sd=cr*(0.6+0.3*Math.sin(i*2.1));
     const sx=x+Math.cos(a)*sd;
     const sy=y+Math.sin(a)*sd;
     cx.beginPath();
-    cx.arc(sx,sy,1+0.5*Math.sin(time*0.003+i),0,Math.PI*2);
+    cx.arc(sx,sy,1.5+0.8*Math.sin(time*0.003+i),0,Math.PI*2);
     const stColors=['#f5e6c8','#e8d5a0','#f0dbb0','#d4a373'];
     cx.fillStyle=stColors[i%stColors.length];
     cx.globalAlpha=0.5*f;
