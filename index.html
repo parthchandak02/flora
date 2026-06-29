@@ -12,18 +12,25 @@ canvas{display:block;width:100%;height:100%;}
 #info .name{font-size:22px;color:#5d4037;letter-spacing:0.5px;margin-bottom:2px;opacity:0;transition:opacity 0.8s ease;}
 #info .pop{font-size:13px;color:rgba(0,0,0,0.5);opacity:0;transition:opacity 0.8s ease;}
 #info .desc{font-size:12px;color:rgba(0,0,0,0.3);margin-top:18px;font-style:italic;letter-spacing:0.3px;}
-#info.show .name,#info.show .pop{opacity:1;}
+#info .datasource{font-size:10px;color:rgba(0,0,0,0.25);letter-spacing:0.5px;margin-bottom:4px;margin-top:4px;opacity:0;transition:opacity 0.8s ease;}
+#info .flag-dots{display:flex;justify-content:center;gap:6px;margin-bottom:2px;opacity:0;transition:opacity 0.8s ease;}
+#info .flag-dots .dot{width:8px;height:8px;border-radius:50%;display:inline-block;border:1px solid rgba(0,0,0,0.08);}
+#info .pop .dens{font-size:10px;color:rgba(0,0,0,0.35);margin-left:4px;letter-spacing:0.3px;}
+#info.show .name,#info.show .pop,#info.show .datasource,#info.show .flag-dots{opacity:1;}
 #tap-hint{position:fixed;bottom:110px;left:50%;transform:translateX(-50%);z-index:10;font-family:Georgia,serif;font-size:13px;color:rgba(0,0,0,0.25);pointer-events:none;opacity:0;transition:opacity 1.5s ease;letter-spacing:1px;}
 #tap-hint.show{opacity:1;}
+#databar{position:fixed;bottom:100px;left:50%;transform:translateX(-50%);z-index:10;font:10px/1 system-ui,sans-serif;color:rgba(0,0,0,0.25);letter-spacing:1px;pointer-events:none;opacity:0;transition:opacity 1.5s ease}
+#databar.show{opacity:1}
 #loading{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:20;font-family:Georgia,serif;font-size:16px;color:rgba(0,0,0,0.3);letter-spacing:2px;}
 #loading.hidden{opacity:0;transition:opacity 0.8s ease;pointer-events:none;}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="info"><div class="name"></div><div class="pop"></div><div class="desc">each country grows into a flower · tap to drift</div></div>
+<div id="info"><div class="name"></div><div class="pop"></div><div class="flag-dots"></div><div class="datasource">REST Countries · — countries · cached at load</div><div class="desc">each country grows into a flower · tap to drift</div></div>
 <div id="tap-hint">↻ tap for next</div>
 <div id="loading">gathering seeds …</div>
+<div id="databar">REST Countries · loading...</div>
 <script>
 // ─── CONFIG ───────────────────────────────────────────────
 const CONFIG = {
@@ -117,6 +124,8 @@ let needNew = true;
 const infoEl = document.querySelector('#info');
 const nameEl = infoEl.querySelector('.name');
 const popEl = infoEl.querySelector('.pop');
+const flagDotsEl = infoEl.querySelector('.flag-dots');
+const datasourceEl = infoEl.querySelector('.datasource');
 const hintEl = document.getElementById('tap-hint');
 const loadingEl = document.getElementById('loading');
 
@@ -136,10 +145,15 @@ async function fetchData() {
       if (!match) match = all.find(c => c.name?.common?.toLowerCase().includes(code.toLowerCase()));
       if (match) result.push(match);
     }
-    if (result.length >= 5) return result;
+    if (result.length >= 5) {
+      lastFetchTime = performance.now();
+      datasourceEl.textContent = 'REST Countries · ' + result.length + ' countries · cached at load';
+      return result;
+    }
     throw new Error('Not enough matches');
   } catch(e) {
     console.warn('API fetch failed, using fallback:', e);
+    datasourceEl.textContent = 'REST Countries · ' + FALLBACK.length + ' countries · cached at load';
     return FALLBACK;
   }
 }
@@ -381,8 +395,17 @@ function drawFlower(ctx, c, progress, alpha) {
 function updateInfo(c, show) {
   if (!c) return;
   nameEl.textContent = c.name?.common || 'Unknown';
-  popEl.textContent = 'population ' + fmtPop(c.population || 0);
+  const pop = c.population || 0;
+  const area = c.area || 1;
+  const density = Math.round(pop / area);
+  popEl.innerHTML = 'population ' + fmtPop(pop) + ' <span class="dens">' + fmtPop(density) + '/km²</span>';
+  // Flag palette dots
+  const colors = FLAG_COLORS[c.cca2] || ['#8d6e63','#a1887f','#ef9a9a'];
+  flagDotsEl.innerHTML = colors.slice(0, 3).map(col =>
+    '<span class="dot" style="background:' + col + '"></span>'
+  ).join('');
   infoEl.classList.toggle('show', show);
+  updateDataBar(c.name?.common || 'Unknown', c.population || 0, c.area || 0);
 }
 
 // ─── RENDER LOOP ───────────────────────────────────────────
@@ -455,6 +478,18 @@ function render(time) {
   ctx.fillRect(0, H - 80, W, 80);
   
   requestAnimationFrame(render);
+}
+
+// ─── DATA BAR ──────────────────────────────────────────────
+let lastFetchTime = 0;
+function updateDataBar(name, pop, area) {
+  const el = document.getElementById('databar');
+  if (!el) return;
+  const density = area > 0 ? Math.round(pop / area) : 0;
+  const now = performance.now();
+  const ago = lastFetchTime ? Math.round((now - lastFetchTime) / 1000) + 's ago' : 'just now';
+  el.textContent = `REST Countries · ${name} · ${density}/km² density · fetched ${ago}`;
+  el.classList.add('show');
 }
 
 // ─── TOUCH / CLICK ────────────────────────────────────────
