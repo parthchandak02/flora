@@ -40,14 +40,16 @@ the United Kingdom, Australia, Egypt, Mexico, Russia, South Korea, Nigeria, Germ
 | Country data | Drives |
 |---|---|
 | Population (log scale) | Stem height and thickness |
-| Land area (log scale) | Number of petals, 5 to 12, and the size of the bloom |
+| Area (log scale) | Number of petals, 5 to 12, and the size of the bloom |
 | Flag colours | Petal colours, cycled around the flower, plus the dots under the name |
 | Population ÷ area | The density figure in the caption and the data line |
 
-The page tries the REST Countries `v3.1/all` endpoint first and falls back to a built-in table
-of rounded populations and areas when that fails. REST Countries has since retired v3.1, so
-today the live site always draws from the built-in table, even though the data line still
-credits REST Countries. Flag colours always come from a hand-written map in the code.
+Population and area come live from the [World Bank API](https://datahelpdesk.worldbank.org/knowledgebase/articles/889392)
+(latest `SP.POP.TOTL` and `AG.SRF.TOTL.K2` for each country, no key needed), and the data line
+credits it. REST Countries, the original source, retired its keyless endpoints; its v5 API
+needs a key, which a public static page can't keep secret. If the World Bank request fails, the
+page uses a built-in table of rounded figures and the data line says `built-in fallback figures`.
+Names, flags and flag colours always come from the code.
 
 ## Run it
 

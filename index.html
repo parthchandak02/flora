@@ -27,7 +27,7 @@ canvas{display:block;width:100%;height:100%;}
 <div id="info"><div class="name"></div><div class="pop"></div><div class="flag-dots"></div><div class="desc">each country grows into a flower · tap to drift</div></div>
 <div id="tap-hint">↻ tap for next</div>
 <div id="loading">gathering seeds …</div>
-<div id="databar">REST Countries · loading...</div>
+<div id="databar">World Bank · loading...</div>
 <script>
 // ─── CONFIG ───────────────────────────────────────────────
 const CONFIG = {
@@ -41,7 +41,8 @@ const CONFIG = {
     text: 'rgba(0,0,0,0.7)',
     dark: '#5d4037',
   },
-  countries: ['USA','India','China','Brazil','Japan','France','UK','AU','EG','MX','RU','KR','NG','DE','IT'],
+  // ISO 3166-1 alpha-2 codes, in display order
+  countries: ['US','IN','CN','BR','JP','FR','GB','AU','EG','MX','RU','KR','NG','DE','IT'],
   petalMin: 5,
   petalMax: 12,
   stemBase: 60,
@@ -126,26 +127,46 @@ const hintEl = document.getElementById('tap-hint');
 const loadingEl = document.getElementById('loading');
 
 // ─── DATA FETCH ────────────────────────────────────────────
+// REST Countries retired its keyless v1-v4 endpoints (v5 needs an API key, which a public
+// static page can't hold), so live figures come from the World Bank's open API instead:
+// latest population (SP.POP.TOTL) and surface area in km² (AG.SRF.TOTL.K2).
+// Names and flags stay from the built-in table.
+let isLive = false;
+async function fetchIndicator(indicator) {
+  const year = new Date().getFullYear();
+  const url = `https://api.worldbank.org/v2/country/${CONFIG.countries.join(';')}/indicator/${indicator}` +
+    `?format=json&date=${year - 8}:${year}&per_page=500`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`World Bank ${indicator}: HTTP ${res.status}`);
+  const json = await res.json();
+  if (!Array.isArray(json) || !Array.isArray(json[1])) throw new Error(`World Bank ${indicator}: unexpected response`);
+  const latest = {};   // cca2 -> { date, value } for the most recent non-null year
+  for (const row of json[1]) {
+    const code = row.country && row.country.id;
+    if (row.value == null || !code) continue;
+    if (!latest[code] || row.date > latest[code].date) latest[code] = { date: row.date, value: row.value };
+  }
+  return latest;
+}
+
 async function fetchData() {
   try {
-    const res = await fetch('https://restcountries.com/v3.1/all');
-    const all = await res.json();
-    const wanted = new Set(CONFIG.countries);
-    const lookup = {};
-    // Also match by cca2
-    for (const c of all) lookup[c.cca2] = c;
-    // Build ordered list
+    const [pop, area] = await Promise.all([
+      fetchIndicator('SP.POP.TOTL'),
+      fetchIndicator('AG.SRF.TOTL.K2'),
+    ]);
     const result = [];
     for (const code of CONFIG.countries) {
-      let match = all.find(c => c.cca2 === code);
-      if (!match) match = all.find(c => c.name?.common?.toLowerCase().includes(code.toLowerCase()));
-      if (match) result.push(match);
+      const base = FALLBACK.find(c => c.cca2 === code);
+      if (!base || !pop[code] || !area[code]) continue;
+      result.push({ ...base, population: pop[code].value, area: area[code].value, year: pop[code].date });
     }
-    if (result.length >= 5) {
+    if (result.length === CONFIG.countries.length) {
+      isLive = true;
       lastFetchTime = performance.now();
       return result;
     }
-    throw new Error('Not enough matches');
+    throw new Error(`Only ${result.length} of ${CONFIG.countries.length} countries returned`);
   } catch(e) {
     console.warn('API fetch failed, using fallback:', e);
     return FALLBACK;
@@ -477,9 +498,12 @@ function updateDataBar(name, pop, area) {
   const el = document.getElementById('databar');
   if (!el) return;
   const density = area > 0 ? Math.round(pop / area) : 0;
-  const now = performance.now();
-  const ago = lastFetchTime ? Math.round((now - lastFetchTime) / 1000) + 's ago' : 'just now';
-  el.textContent = `REST Countries · ${name} · ${density}/km² density · fetched ${ago}`;
+  if (!isLive) {
+    el.textContent = `built-in fallback figures (World Bank API unavailable) · ${name} · ${density}/km² density`;
+    return;
+  }
+  const ago = Math.round((performance.now() - lastFetchTime) / 1000) + 's ago';
+  el.textContent = `World Bank · ${name} · ${density}/km² density · fetched ${ago}`;
 }
 
 // ─── TOUCH / CLICK ────────────────────────────────────────
